@@ -126,6 +126,7 @@ void Control_Device::handleMessage(cMessage *msg)
         // generate a packet and put into queue
         ethPacket *pkt = generateNewPacket();
         source_queue.insert(pkt);
+        buffer_size += pkt->getByteLength();
 
         // schedule next packet generation
         double mean = 1e-3*(1.0/ArrivalRate);                       // mean = 11 ms
@@ -143,6 +144,7 @@ void Control_Device::handleMessage(cMessage *msg)
         if(!source_queue.isEmpty()) {
             // dequeue next packet
             ethPacket *pkt = check_and_cast<ethPacket *>(source_queue.pop());
+            buffer_size -= pkt->getByteLength();
 
             cModule *targetModule = getParentModule()->getSubmodule("waps", (getIndex()*2+1));
             // compute delays
