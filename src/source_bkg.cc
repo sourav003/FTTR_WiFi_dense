@@ -109,6 +109,7 @@ void Background_Device::initialize()
     generateEvent = new cMessage("generateEvent");  // initializing here
     sendEvent = new cMessage("sendEvent");
     sendEventTxBound = new cMessage("sendEventTxBound");
+
     // schedule first packet generation
     scheduleAt(simTime(), generateEvent);           // scheduling packet generation for the first time
 }

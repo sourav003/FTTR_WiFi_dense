@@ -92,6 +92,15 @@ void Control_Device::initialize()
     //wap_dist = par("wap_distance").doubleValue();
     EV << getFullName() << " wap_distance = " << wap_dist << endl;
 
+    ping *png = new ping("ping");      // sending ping message at T = 0 for finding the RTT of all ONUs
+    png->setSTA_id(getIndex());
+    png->setSTA_band_pref("5GHz");      // this is hard choice!
+    png->setInter_node_dist(wap_dist);
+
+    cModule *targetModule = getParentModule()->getSubmodule("waps", (getIndex()*2+1));
+    sendDirect(png, 0, 0, targetModule->gate("Src_in"));
+    EV << getFullName() << " Sending ping to " << targetModule->getFullName() << " at = " << simTime() << endl;
+
     source_queue.setName("source_queue");
 
     avgPacketSize = par("meanPacketSize").doubleValue();                      // get the avg packet size from NED file
