@@ -13,10 +13,12 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 //
 
-message ping
-{
-    int STA_id;
-    string STA_band_pref;
+packet trigger_bsr extends cPacket
+{    
+    double Throughput;
+    double BW_alloc;
+    double TX_time;
     
-    double Inter_node_dist;
+    string STA_band_pref;
+    double STA_buffer_size;
 }

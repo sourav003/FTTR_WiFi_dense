@@ -22,8 +22,8 @@ class ping;
  * <pre>
  * message ping
  * {
- *     int ONU_id;
- *     int SFU_id;
+ *     int STA_id;
+ *     string STA_band_pref;
  * 
  *     double Inter_node_dist;
  * }
@@ -32,8 +32,8 @@ class ping;
 class ping : public ::omnetpp::cMessage
 {
   protected:
-    int ONU_id = 0;
-    int SFU_id = 0;
+    int STA_id = 0;
+    omnetpp::opp_string STA_band_pref;
     double Inter_node_dist = 0;
 
   private:
@@ -51,11 +51,11 @@ class ping : public ::omnetpp::cMessage
     virtual void parsimPack(omnetpp::cCommBuffer *b) const override;
     virtual void parsimUnpack(omnetpp::cCommBuffer *b) override;
 
-    virtual int getONU_id() const;
-    virtual void setONU_id(int ONU_id);
+    virtual int getSTA_id() const;
+    virtual void setSTA_id(int STA_id);
 
-    virtual int getSFU_id() const;
-    virtual void setSFU_id(int SFU_id);
+    virtual const char * getSTA_band_pref() const;
+    virtual void setSTA_band_pref(const char * STA_band_pref);
 
     virtual double getInter_node_dist() const;
     virtual void setInter_node_dist(double Inter_node_dist);

@@ -16,6 +16,7 @@
 #include "sim_params.h"
 #include "ethPacket_m.h"
 #include "ping_m.h"
+#include "trigger_bsr_m.h"
 
 using namespace std;
 using namespace omnetpp;
@@ -37,10 +38,13 @@ class Control_Device : public cSimpleModule
         double pkt_interval;                     // inter-packet generation interval
         double wireless_datarate;
         double wap_dist;
+        double buffer_size = 0;
+        double ul_tx_time = 0;
         vector<double> dist_values;
 
         cMessage *generateEvent = nullptr;
         cMessage *sendEvent = nullptr; // new event to know when transmission finishes
+        cMessage *sendEventTxBound = nullptr;
 
         //simsignal_t arrivalSignal;               // to send signals for statistics collection
 
@@ -61,6 +65,7 @@ Control_Device::~Control_Device()
 {
     cancelAndDelete(generateEvent);
     cancelAndDelete(sendEvent);
+    cancelAndDelete(sendEventTxBound);
 
     // Clean up queues
     while (!source_queue.isEmpty()) {
@@ -100,6 +105,7 @@ void Control_Device::initialize()
     generateEvent = new cMessage("generateEvent");              // self-message is generated for next packet generation
     //emit(arrivalSignal,pkt_interval);
     sendEvent = new cMessage("sendEvent");                      // initializing here
+    sendEventTxBound = new cMessage("sendEventTxBound");
 
     // schedule first packet generation
     scheduleAt(simTime(), generateEvent);
@@ -120,9 +126,9 @@ void Control_Device::handleMessage(cMessage *msg)
         EV << getFullName() << " Next packet generation is scheduled at = " << simTime()+pkt_interval << endl;
 
         // send packet if the channel is free
-        if (!sendEvent->isScheduled()) {        // if no transmission is happening
+        /*if (!sendEvent->isScheduled()) {        // if no transmission is happening
             scheduleAt(simTime(), sendEvent);   // schedule send event immediately
-        }
+        }*/
     }
     else if(strcmp(msg->getName(),"sendEvent") == 0) {
         if(!source_queue.isEmpty()) {
@@ -145,6 +151,58 @@ void Control_Device::handleMessage(cMessage *msg)
             // no need to re-schedule sendEvent in this case.
         }
     }
+    else if(strcmp(msg->getName(),"sendEventTxBound") == 0) {
+        if(!source_queue.isEmpty()) {
+            ethPacket *pkt = check_and_cast<ethPacket *>(source_queue.pop());
+            buffer_size -= pkt->getByteLength();
+
+            cModule *targetModule = getParentModule()->getSubmodule("waps", (getIndex()*2+1));
+            simtime_t propDelay = wap_dist / (3e8);
+            simtime_t txDuration = pkt->getBitLength() / wireless_datarate;
+            sendDirect(pkt, propDelay, txDuration, targetModule->gate("Src_in"));
+            EV << getFullName() << " Sent control packet at = " << simTime();
+            EV << " and next packet may be sent at = " << simTime()+txDuration << endl;
+
+            ul_tx_time -= txDuration.dbl();                       // transmission time of current packet is reduced
+            if(ul_tx_time > 0) {
+                if(!source_queue.isEmpty()) {                     // need to check if the remaining ul_tx_time is sufficient to transmit the next packet
+                    ethPacket *front = (ethPacket *)source_queue.front();
+                    double txLatency = front->getBitLength() / wireless_datarate;
+                    if(ul_tx_time >= txLatency)
+                        scheduleAt(simTime()+txDuration, sendEventTxBound);
+                }
+            }
+        }
+        else {
+            EV << getFullName() << " Queue is empty now!" << endl;
+            // no need to re-schedule sendEvent in this case.
+        }
+    }
+    else if((strcmp(msg->getName(),"trigger_6GHz") == 0)||(strcmp(msg->getName(),"trigger_5GHz")) == 0) {
+        trigger_bsr *trg = check_and_cast<trigger_bsr *>(msg);
+        wireless_datarate = trg->getThroughput();
+        ul_tx_time = trg->getTX_time();
+        delete trg;
+
+        trigger_bsr *bsr = new trigger_bsr("bsr");
+        bsr->setByteLength(64);
+        bsr->setSTA_band_pref("5GHz");                          // currently preferred band is 5 GHz
+        bsr->setSTA_buffer_size(buffer_size);
+
+        cModule *targetModule = getParentModule()->getSubmodule("waps", (getIndex()*2+1));
+        // compute delays
+        simtime_t propDelay = wap_dist / (3e8);
+        simtime_t txDuration = bsr->getBitLength() / wireless_datarate;
+        // send it
+        sendDirect(bsr, propDelay, txDuration, targetModule->gate("Src_in"));
+        EV << getFullName() << " Sent BSR to = " << targetModule->getFullName() << " at " << simTime() << endl;
+
+        // schedule ul transmission after SIFS
+        if((ul_tx_time > 0)&&(!sendEventTxBound->isScheduled())) {
+            scheduleAt(simTime()+wifi_sifs_time, sendEventTxBound);
+        }
+        // ignoring ACK and other control messages intentionally as their time gaps are numerically considered
+    }
 }
 
 ethPacket *Control_Device::generateNewPacket()
@@ -155,7 +213,6 @@ ethPacket *Control_Device::generateNewPacket()
     //EV << getFullName() << " New packet generated with size (bytes): " << avgPacketSize << endl;
     return pkt;
 }
-
 
 
 
