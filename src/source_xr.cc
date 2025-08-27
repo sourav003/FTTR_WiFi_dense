@@ -218,7 +218,7 @@ void XR_Device::handleMessage(cMessage *msg)
         EV << getFullName() << " Sent BSR to = " << targetModule->getFullName() << " at " << simTime() << endl;
 
         // schedule ul transmission after SIFS
-        if(ul_tx_time > 0) {
+        if((ul_tx_time > 0)&&(!sendEventTxBound->isScheduled())) {
             scheduleAt(simTime()+wifi_sifs_time, sendEventTxBound);
         }
         // ignoring ACK and other control messages intentionally as their time gaps are numerically considered
