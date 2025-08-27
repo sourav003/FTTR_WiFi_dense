@@ -21,7 +21,7 @@ simple Background_Device
         double throughput = uniform(3e9,5e9);
         double ber = default(1e-6);
 
-        double load = default(0.3);																	// this will vary as 0.1:0.1:1
+        double load = default(0.3);																// this will vary as 0.1:0.1:1
         double dataRate = default((50e9-(40e6+53.33e3+1.2e6+1.2e6)*16*4)/(16*8*3));				//max datarate in bps
         //double dataRate = default(50e9/(16*8*3));
         //double dataRate = default(100e6);
@@ -115,6 +115,17 @@ simple WiFi_AP
         @display("i=device/accesspoint");
         double wap_distance @unit(m) = uniform(0.1m,5m);
         double throughput = uniform(3e9,5e9);
+        
+        @signal[bkg_latency](type="double");
+        @statistic[bkg_packet_latency](title="Background packet latency at ONU"; source="bkg_latency"; record=vector,stats; interpolationmode=none);
+        @signal[xr_latency](type="double");
+        @statistic[xr_packet_latency](title="XR packet latency at ONU"; source="xr_latency"; record=vector,stats; interpolationmode=none);
+        @signal[hmd_latency](type="double");
+        @statistic[hmd_packet_latency](title="HMD packet latency at ONU"; source="hmd_latency"; record=vector,stats; interpolationmode=none);
+        @signal[ctrl_latency](type="double");
+        @statistic[ctrl_packet_latency](title="Control packet latency at ONU"; source="ctrl_latency"; record=vector,stats; interpolationmode=none);
+        @signal[hptc_latency](type="double");
+        @statistic[hptc_packet_latency](title="Haptic packet latency at ONU"; source="hptc_latency"; record=vector,stats; interpolationmode=none);
 
     gates:
         input Src_in @directIn;
